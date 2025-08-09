@@ -99,7 +99,7 @@ You can configure the build settings in `pawncli.toml`:
 [build]
 entry_file = "gamemodes/main.pwn"
 output_file = "gamemodes/main.amx"
-compiler_version = "v3.10.10"
+compiler_version = "v3.10.11"
 
 [build.includes]
 paths = [
