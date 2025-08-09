@@ -1,0 +1,20 @@
+[build]
+entry_file = "gamemodes/main.pwn"
+output_file = "gamemodes/main.amx"
+compiler_version = "v3.10.11"
+
+[build.includes]
+paths = [
+    "qawno/include"
+]
+
+[build.args]
+# Default compiler args
+args = [
+    "-d3",
+    "-;+",
+    "-(+",
+    "-\\+",
+    "-Z+",
+    "-O1"
+] 

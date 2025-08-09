@@ -1,0 +1,11 @@
+* text=auto
+
+*.c text
+*.h text
+
+*.exe binary
+*.dll binary
+*.so binary
+*.a binary
+*.lib binary
+*.dylib binary 
