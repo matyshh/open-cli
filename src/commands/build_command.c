@@ -105,9 +105,9 @@ static void print_build_usage(void) {
     printf("Usage: opencli build [options]\n");
     printf("\n");
     printf("Options:\n");
-    printf("  --input <file>      Input file to compile (default: from pawncli.toml or %s)\n", DEFAULT_INPUT_FILE);
-    printf("  --output <file>     Output file (default: from pawncli.toml or %s)\n", DEFAULT_OUTPUT_FILE);
-    printf("  --compiler <ver>    Compiler version to use (default: from pawncli.toml or %s)\n", DEFAULT_COMPILER_VERSION);
+    printf("  --input <file>      Input file to compile (default: from opencli.toml or %s)\n", DEFAULT_INPUT_FILE);
+    printf("  --output <file>     Output file (default: from opencli.toml or %s)\n", DEFAULT_OUTPUT_FILE);
+    printf("  --compiler <ver>    Compiler version to use (default: from opencli.toml or %s)\n", DEFAULT_COMPILER_VERSION);
     printf("  --includes <dir>    Additional include directory\n");
     printf("  --help              Show this help message\n");
 }
@@ -231,7 +231,7 @@ int command_build(int argc, char *argv[]) {
     char *compiler_path;
     bool have_includes = false;
     
-    // Check if pawncli.toml exists
+    // Check if opencli.toml exists
     struct stat toml_st;
     bool has_toml = (stat(DEFAULT_TOML_FILE, &toml_st) == 0);
     

@@ -6,7 +6,7 @@ A command-line interface for managing open.mp servers
 
 - Run open.mp servers with configurable options
 - Compile Pawn scripts with automatic compiler installation
-- Configuration via pawncli.toml
+- Configuration via opencli.toml
 - Directly install Pawn compiler versions
 
 ## Inspiration
@@ -87,13 +87,13 @@ opencli install compiler --version 3.10.9
 opencli install --help
 ```
 
-The compiler will be installed to `%APPDATA%\pawncli\compiler\<version>` (Windows) or `~/.config/pawncli/compiler/<version>` (Linux/macOS).
+The compiler will be installed to `%APPDATA%\opencli\compiler\<version>` (Windows) or `~/.config/opencli/compiler/<version>` (Linux/macOS).
 
 ## Configuration
 
-### pawncli.toml
+### opencli.toml
 
-You can configure the build settings in `pawncli.toml`:
+You can configure the build settings in `opencli.toml`:
 
 ```toml
 [build]
