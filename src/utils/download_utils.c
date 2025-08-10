@@ -2,11 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
 #include <wininet.h>
 #pragma comment(lib, "wininet.lib")
+#elif defined(__ANDROID__)
+// Android uses internal HTTP functionality
+#include <sys/socket.h>
+#include <netdb.h>
 #else
 #include <curl/curl.h>
 #endif
@@ -96,6 +101,88 @@ bool download_file(const char *url, const char *dest_path) {
     InternetCloseHandle(hUrl);
     InternetCloseHandle(hInternet);
     return result;
+#elif defined(__ANDROID__)
+    printf("Detecting download tools on Android/Termux...\n");
+    
+    bool wget_available = false;
+    bool curl_available = false;
+    
+    printf("Checking for wget...\n");
+    if (system("wget --version > /dev/null 2>&1") == 0) {
+        wget_available = true;
+        printf("wget detected via --version check\n");
+    } else if (system("which wget > /dev/null 2>&1") == 0) {
+        wget_available = true;
+        printf("wget detected via which command\n");
+    } else if (system("command -v wget > /dev/null 2>&1") == 0) {
+        wget_available = true;
+        printf("wget detected via command -v\n");
+    } else {
+        printf("wget not found\n");
+    }
+    
+    
+    if (wget_available) {
+        char cmd[2048];
+        snprintf(cmd, sizeof(cmd), "wget --no-check-certificate -O '%s' '%s'", dest_path, url);
+        
+        printf("Downloading with wget: %s\n", url);
+        int result = system(cmd);
+        
+        if (result == 0) {
+            printf("Download completed successfully with wget\n");
+            return true;
+        } else {
+            fprintf(stderr, "Download failed with wget (exit code: %d)\n", result);
+            
+        }
+    } else {
+        printf("wget not found, trying alternative methods...\n");
+    }
+    
+    printf("Checking for curl...\n");
+    if (system("curl --version > /dev/null 2>&1") == 0) {
+        curl_available = true;
+        printf("curl detected via --version check\n");
+    } else if (system("which curl > /dev/null 2>&1") == 0) {
+        curl_available = true;
+        printf("curl detected via which command\n");
+    } else if (system("command -v curl > /dev/null 2>&1") == 0) {
+        curl_available = true;
+        printf("curl detected via command -v\n");
+    } else {
+        printf("curl not found\n");
+    }
+    
+    
+    if (curl_available) {
+        char cmd[2048];
+        snprintf(cmd, sizeof(cmd), "curl -k -L -o '%s' '%s'", dest_path, url);
+        
+        printf("Downloading with curl: %s\n", url);
+        int result = system(cmd);
+        
+        if (result == 0) {
+            printf("Download completed successfully with curl\n");
+            return true;
+        } else {
+            fprintf(stderr, "Download failed with curl (exit code: %d)\n", result);
+        }
+    } else {
+        printf("curl not found, trying git as fallback...\n");
+    }
+    
+    
+    if (system("which git > /dev/null 2>&1") == 0) {
+        printf("Attempting git-based download (fallback method)...\n");
+        fprintf(stderr, "git is available but not optimal for direct file downloads\n");
+    }
+    
+    fprintf(stderr, "\nError: No suitable download tool found on Android/Termux\n");
+    fprintf(stderr, "Please install one of the following:\n");
+    fprintf(stderr, "  pkg install wget     (recommended)\n");
+    fprintf(stderr, "  pkg install curl     (alternative)\n");
+    return false;
 #else
     // Linux/macOS implementation using libcurl
     CURL *curl;

@@ -329,6 +329,9 @@ bool is_compiler_installed(const char *version) {
     #ifdef __APPLE__
     sprintf(path_exe, "%s/%s/pawnc-%s-macos/bin/pawncc", compiler_base_dir, version, version_without_v);
     sprintf(path_dll, "%s/%s/pawnc-%s-macos/lib/libpawnc.dylib", compiler_base_dir, version, version_without_v);
+    #elif defined(__ANDROID__)
+    sprintf(path_exe, "%s/%s/bin/pawncc", compiler_base_dir, version);
+    sprintf(path_dll, "%s/%s/lib/libpawnc.so", compiler_base_dir, version);
     #else
     sprintf(path_exe, "%s/%s/pawnc-%s-linux/bin/pawncc", compiler_base_dir, version, version_without_v);
     sprintf(path_dll, "%s/%s/pawnc-%s-linux/lib/libpawnc.so", compiler_base_dir, version, version_without_v);
@@ -382,6 +385,8 @@ char *get_compiler_path(const char *version) {
 #else
     #ifdef __APPLE__
     sprintf(path, "%s/%s/pawnc-%s-macos/bin/pawncc", compiler_base_dir, version, version_without_v);
+    #elif defined(__ANDROID__)
+    sprintf(path, "%s/%s/bin/pawncc", compiler_base_dir, version);
     #else
     sprintf(path, "%s/%s/pawnc-%s-linux/bin/pawncc", compiler_base_dir, version, version_without_v);
     #endif
@@ -418,8 +423,12 @@ bool install_compiler(const char *version) {
         #endif
     }
     
-    // Choose repository based on version - v3.10.11+ uses openmultiplayer, older uses pawn-lang
+
     const char *repo_url;
+    
+#ifdef __ANDROID__
+    repo_url = "https://github.com/matyshh/compiler";
+#else
     int major, minor, patch;
     const char *version_parse = (version[0] == 'v') ? version + 1 : version;
     
@@ -434,6 +443,7 @@ bool install_compiler(const char *version) {
         // Fallback for unparseable versions - use pawn-lang
         repo_url = "https://github.com/pawn-lang/compiler";
     }
+#endif
     
 #ifdef _WIN32
     sprintf_s(url, sizeof(url), "%s/releases/download/%s/pawnc-%s-windows.zip", repo_url, version, version_without_v);
@@ -442,6 +452,10 @@ bool install_compiler(const char *version) {
 #else
     #ifdef __APPLE__
     sprintf(url, "%s/releases/download/%s/pawnc-%s-macos.zip", repo_url, version, version_without_v);
+    sprintf(zip_path, "%s/%s.zip", compiler_base_dir, version);
+    sprintf(extract_dir, "%s/%s", compiler_base_dir, version);
+    #elif defined(__ANDROID__)
+    sprintf(url, "%s/releases/download/%s/pawnc-%s-android.zip", repo_url, version_without_v, version_without_v);
     sprintf(zip_path, "%s/%s.zip", compiler_base_dir, version);
     sprintf(extract_dir, "%s/%s", compiler_base_dir, version);
     #else
@@ -496,6 +510,11 @@ bool install_compiler(const char *version) {
         log_message("Failed to extract compiler");
         return false;
     }
+    #elif defined(__ANDROID__)
+    if (!extract_zip(zip_path, extract_dir)) {
+        log_message("Failed to extract compiler");
+        return false;
+    }
     #else
     if (!extract_tgz(zip_path, extract_dir)) {
         log_message("Failed to extract compiler");
@@ -514,6 +533,9 @@ bool install_compiler(const char *version) {
     #ifdef __APPLE__
     sprintf(pawncc_path, "%s/pawnc-%s-macos/bin/pawncc", extract_dir, version_without_v);
     sprintf(pawnc_path, "%s/pawnc-%s-macos/lib/libpawnc.dylib", extract_dir, version_without_v);
+    #elif defined(__ANDROID__)
+    sprintf(pawncc_path, "%s/bin/pawncc", extract_dir);
+    sprintf(pawnc_path, "%s/lib/libpawnc.so", extract_dir);
     #else
     sprintf(pawncc_path, "%s/pawnc-%s-linux/bin/pawncc", extract_dir, version_without_v);
     sprintf(pawnc_path, "%s/pawnc-%s-linux/lib/libpawnc.so", extract_dir, version_without_v);
@@ -532,6 +554,14 @@ bool install_compiler(const char *version) {
         
         return false;
     }
+    
+#ifdef __ANDROID__
+    if (chmod(pawncc_path, 0755) != 0) {
+        log_message("Warning: Failed to make pawncc executable: %s", strerror(errno));
+    } else {
+        log_message("Made pawncc executable with chmod +x");
+    }
+#endif
     
     log_message("Compiler %s installed successfully", version);
     log_message("Executable path: %s", pawncc_path);

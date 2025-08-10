@@ -23,4 +23,13 @@ binary = "pawncc.exe"
 
 [windows.paths]
 "(pawnc-(.+)/)?bin/pawnc.dll" = "pawnc.dll"
-"(pawnc-(.+)/)?bin/pawncc.exe" = "pawncc.exe" 
+"(pawnc-(.+)/)?bin/pawncc.exe" = "pawncc.exe"
+
+[android]
+match = "pawnc-(.+)-(android)\\.zip"
+method = "zip"
+binary = "pawncc"
+
+[android.paths]
+"(pawnc-(.+)/)?bin/pawncc" = "pawncc"
+"(pawnc-(.+)/)?lib/libpawnc.so" = "libpawnc.so"

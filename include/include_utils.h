@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <time.h>
 
 #define MAX_INCLUDE_PATH_LEN 1024
 #define MAX_INCLUDE_CACHE_SIZE 256

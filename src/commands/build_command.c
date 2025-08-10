@@ -89,6 +89,9 @@ static char* get_compiler_dll_path(const char *version) {
     #ifdef __APPLE__
     sprintf(dll_path, "%s/opencli/compiler/%s/pawnc-%s-macos/lib/libpawnc.dylib", 
             appdata_path, version, version_without_v);
+    #elif defined(__ANDROID__)
+    sprintf(dll_path, "%s/opencli/compiler/%s/pawnc-%s-android/lib/libpawnc.so", 
+            appdata_path, version, version_without_v);
     #else
     sprintf(dll_path, "%s/opencli/compiler/%s/pawnc-%s-linux/lib/libpawnc.so", 
             appdata_path, version, version_without_v);
@@ -269,7 +272,7 @@ int command_build(int argc, char *argv[]) {
         }
     }
     
-    // Read values from pawncli.toml if available
+    // Read values from opencli.toml if available
     if (has_toml) {
         // Only use toml values if command line options were not provided
         if (input_file[0] == '\0') {
@@ -373,8 +376,7 @@ int command_build(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
-    // For output, format must be: output gamemodes/gungame (without .amx extension)
-    // Extract output path without the extension
+
     char output_path_without_ext[512];
     #ifdef _WIN32
     strcpy_s(output_path_without_ext, sizeof(output_path_without_ext), output_file);
@@ -385,13 +387,12 @@ int command_build(int argc, char *argv[]) {
     // Remove .amx extension if present
     char *dot = strrchr(output_path_without_ext, '.');
     if (dot && strcmp(dot, ".amx") == 0) {
-        *dot = '\0'; // Truncate string at the dot
+        *dot = '\0'; 
     }
     
 #ifdef _WIN32
-    // Copy pawnc.dll to current directory to ensure it's available during compilation
     char* dll_source_path = get_compiler_dll_path(compiler_version);
-    char dll_dest_path[512] = "pawnc.dll"; // Copy to current directory
+    char dll_dest_path[512] = "pawnc.dll"; 
     
     if (!copy_file(dll_source_path, dll_dest_path)) {
         fprintf(stderr, "Warning: Failed to copy pawnc.dll to current directory.\n");
@@ -399,18 +400,16 @@ int command_build(int argc, char *argv[]) {
     }
 #endif
     
-    // Determine if we need to use a wrapper script or direct execution
+    
 #ifdef _WIN32
-    // On Windows, create a batch file to run the compiler properly
     char batch_file[512];
     char working_dir[512];
-    
-    // Get current working directory
+
     if (GetCurrentDirectory(sizeof(working_dir), working_dir) == 0) {
         strcpy_s(working_dir, sizeof(working_dir), ".");
     }
     
-    // Create temporary batch file
+    
     sprintf_s(batch_file, sizeof(batch_file), "%s\\pawn_compile_temp.bat", working_dir);
     FILE* bat_file;
     if (fopen_s(&bat_file, batch_file, "w") != 0) {
@@ -418,14 +417,14 @@ int command_build(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
-    // Write commands to batch file
+   
     fprintf(bat_file, "@echo off\n");
     fprintf(bat_file, "cd \"%s\"\n", working_dir);
     
-    // Build the compiler command
+    
     fprintf(bat_file, "\"%s\" ", compiler_path);
     
-    // Get compiler flags from TOML if available
+    
     if (has_toml) {
         int args_count = 0;
         char **compiler_args = read_toml_compiler_args(DEFAULT_TOML_FILE, &args_count);
@@ -484,19 +483,19 @@ int command_build(int argc, char *argv[]) {
     
     fclose(bat_file);
     
-    // Kumpulkan semua include path untuk pengecekan
-    const char *include_dirs[32]; // Support up to 32 include directories
+    
+    const char *include_dirs[32]; 
     int include_dir_count = 0;
     
-    // Tambahkan direktori input file
+    
     include_dirs[include_dir_count++] = input_dir;
     
-    // Tambahkan include dari command line
+    
     if (have_includes && includes[0] != '\0') {
         include_dirs[include_dir_count++] = includes;
     }
     
-    // Tambahkan include dari TOML
+    
     if (has_toml) {
         int toml_include_count = 0;
         char **toml_include_paths = read_toml_include_paths(DEFAULT_TOML_FILE, &toml_include_count);
@@ -561,7 +560,7 @@ int command_build(int argc, char *argv[]) {
     // Add input and output files
     args[arg_count++] = input_file;
     args[arg_count++] = "-o";
-    args[arg_count++] = output_path_without_ext;  // Without .amx extension
+    args[arg_count++] = output_path_without_ext;  
     
    
     char *input_dir = get_directory_path(input_file);
@@ -646,8 +645,14 @@ int command_build(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     
-    // Run compiler
+
     printf("Compiling %s to %s...\n", input_file, output_file);
+    
+#ifdef __ANDROID__
+    
+    printf("Note: If compilation fails with FORTIFY error, try: export FORTIFY_SOURCE=0\n");
+#endif
+    
     int result = run_process(compiler_path, args, true);
     
     

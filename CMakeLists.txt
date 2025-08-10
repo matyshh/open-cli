@@ -25,6 +25,23 @@ if(MSVC)
     endif()
 endif()
 
+# Android NDK support
+if(ANDROID)
+    message(STATUS "Building for Android")
+    add_definitions(-D__ANDROID__)
+    
+    
+    if(NOT ANDROID_PLATFORM)
+        set(ANDROID_PLATFORM android-21)
+    endif()
+    
+   
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+    
+    message(STATUS "Android ABI: ${ANDROID_ABI}")
+    message(STATUS "Android Platform: ${ANDROID_PLATFORM}")
+endif()
+
 add_library(tomlc99 STATIC lib/tomlc99/toml.c)
 target_include_directories(tomlc99 PUBLIC lib/tomlc99)
 
@@ -46,8 +63,12 @@ add_executable(opencli
 
 target_link_libraries(opencli tomlc99)
 
+
+
 if(WIN32)
     target_link_libraries(opencli wininet)
+elseif(ANDROID)
+    target_link_libraries(opencli log)
 else()
     find_package(CURL REQUIRED)
     include_directories(${CURL_INCLUDE_DIRS})
@@ -57,5 +78,5 @@ endif()
 install(TARGETS opencli DESTINATION bin)
 install(FILES 
     ${CMAKE_SOURCE_DIR}/compilers.toml
-    ${CMAKE_SOURCE_DIR}/pawncli.toml
+    ${CMAKE_SOURCE_DIR}/opencli.toml
     DESTINATION share/opencli)

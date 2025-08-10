@@ -7,6 +7,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
+#include <sys/wait.h>
 #endif
 
 #define DEFAULT_SERVER_PATH "."
@@ -113,7 +116,7 @@ int command_run(int argc, char *argv[]) {
     
     
     char *args[4];
-    args[0] = (char*)SERVER_EXECUTABLE;
+    args[0] = server_exe;  
     args[1] = "--config";
     args[2] = config_path;
     args[3] = NULL;

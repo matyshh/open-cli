@@ -1,4 +1,7 @@
 build/
+build-arm32/
+build-arm64/
+build-mingw/
 *.exe
 *.obj
 *.o
