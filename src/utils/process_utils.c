@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <stdbool.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -11,9 +12,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
 #include <signal.h>
-#include <stdbool.h>
 #endif
 
 int run_process(const char *command, char *const args[], bool wait_for_exit) {
@@ -53,18 +52,11 @@ int run_process(const char *command, char *const args[], bool wait_for_exit) {
         return 0;
     }
 #else
-    // POSIX implementation
-    pid_t pid = fork();
-    
-    if (pid < 0) {
-        fprintf(stderr, "Fork failed\n");
-        return -1;
-    } else if (pid == 0) {
-        if (access(command, F_OK) != 0 || access(command, X_OK) != 0) {
-            exit(EXIT_FAILURE);
-        }
-        
 #ifdef __ANDROID__
+    if (access(command, F_OK) != 0 || access(command, X_OK) != 0) {
+        fprintf(stderr, "Command not found or not executable: %s\n", command);
+        return -1;
+    }
         if (strstr(command, "pawncc") != NULL) {
             char source_lib_path[1024];
             char source_libpawnc_path[1024];
@@ -88,6 +80,7 @@ int run_process(const char *command, char *const args[], bool wait_for_exit) {
                     const char *prefix = getenv("PREFIX");
                     if (!prefix) {
                         prefix = "/data/data/com.termux/files/usr"; 
+                    }
                     snprintf(prefix_lib_path, sizeof(prefix_lib_path), "%s/lib", prefix);
                     snprintf(prefix_libpawnc_path, sizeof(prefix_libpawnc_path), "%s/libpawnc.so", prefix_lib_path);
                     
@@ -158,15 +151,48 @@ int run_process(const char *command, char *const args[], bool wait_for_exit) {
                         setenv("TERM", "xterm", 0);
                         setenv("LC_ALL", "C", 0);
                         
-                    } else {
-                        fprintf(stderr, "[ERROR] Source libpawnc.so not found: %s\n", source_libpawnc_path);
-                        fprintf(stderr, "[ERROR] errno: %s\n", strerror(errno));
                     }
                 }
             }
             free(compiler_dir);
         }
-#endif
+        
+        char full_command[4096] = {0};
+        strcat(full_command, command);  
+        
+         
+        for (int i = 1; args[i] != NULL; i++) {
+            strcat(full_command, " ");
+            
+            if (strchr(args[i], ' ') != NULL) {
+                strcat(full_command, "'");  
+                strcat(full_command, args[i]);
+                strcat(full_command, "'");
+            } else {
+                strcat(full_command, args[i]);
+            }
+        }
+        
+        // Debug: print environment and command
+        printf("[DEBUG] Android system() executing: %s\n", full_command);
+        printf("[DEBUG] LD_LIBRARY_PATH: %s\n", getenv("LD_LIBRARY_PATH") ? getenv("LD_LIBRARY_PATH") : "NULL");
+        printf("[DEBUG] FORTIFY_SOURCE: %s\n", getenv("FORTIFY_SOURCE") ? getenv("FORTIFY_SOURCE") : "NULL");
+        
+        
+        int result = system(full_command);
+        printf("[DEBUG] system() result: %d, WEXITSTATUS: %d\n", result, WEXITSTATUS(result));
+        return WEXITSTATUS(result);
+        
+#else
+    // Non-Android POSIX: Use traditional fork/execvp
+    pid_t pid = fork();
+    if (pid < 0) {
+        fprintf(stderr, "Fork failed\n");
+        return -1;
+    } else if (pid == 0) {
+        if (access(command, F_OK) != 0 || access(command, X_OK) != 0) {
+            exit(EXIT_FAILURE);
+        }
         
         execvp(command, args);
         exit(EXIT_FAILURE);
@@ -182,6 +208,7 @@ int run_process(const char *command, char *const args[], bool wait_for_exit) {
         }
         return 0;
     }
+#endif
 #endif
 }
 
@@ -213,11 +240,7 @@ bool is_process_running(const char *process_name) {
 #else
     // POSIX implementation (simplified)
     char cmd[256];
-    #ifdef _WIN32
-    sprintf_s(cmd, sizeof(cmd), "pgrep -x %s > /dev/null", process_name);
-    #else
     sprintf(cmd, "pgrep -x %s > /dev/null", process_name);
-    #endif
     return system(cmd) == 0;
 #endif
 } 
