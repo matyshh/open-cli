@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# OpenCLI Installation Script for Android/Termux
-# Auto-detects architecture and installs the appropriate binary
+
 
 set -e
 
