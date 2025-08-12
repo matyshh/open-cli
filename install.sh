@@ -217,7 +217,7 @@ install_binary() {
     # Copy and set permissions
     print_info "Installing OpenCLI to: $target_path"
     
-    if cp "$DOWNLOADED_FILE" "$target_path"; then
+    if cp "$EXTRACTED_BINARY" "$target_path"; then
         print_success "Binary copied successfully"
     else
         print_error "Failed to copy binary"
