@@ -160,27 +160,109 @@ int run_process(const char *command, char *const args[], bool wait_for_exit) {
         char full_command[4096] = {0};
         strcat(full_command, command);  
         
-         
+        // Comprehensive FORTIFY bypass: Multiple approaches for NDK binaries
+        char bypass_command[4096] = {0};
+        
+        // Method 1: Try with unset + export approach
+        snprintf(bypass_command, sizeof(bypass_command), 
+                "unset FORTIFY_SOURCE; unset _FORTIFY_SOURCE; "
+                "export FORTIFY_SOURCE=0; export _FORTIFY_SOURCE=0; "
+                "export __BIONIC_FORTIFY=0; export TERM=xterm; export LC_ALL=C; "
+                "exec %s", command);
+        
+        // Build command with proper shell escaping for metacharacters
         for (int i = 1; args[i] != NULL; i++) {
-            strcat(full_command, " ");
+            strcat(bypass_command, " ");
             
-            if (strchr(args[i], ' ') != NULL) {
-                strcat(full_command, "'");  
-                strcat(full_command, args[i]);
-                strcat(full_command, "'");
+            // Check if argument contains shell metacharacters that need escaping
+            char *arg = args[i];
+            int needs_escaping = 0;
+            for (char *p = arg; *p; p++) {
+                if (*p == '(' || *p == ')' || *p == ';' || *p == '+' || *p == '\\' || *p == ' ') {
+                    needs_escaping = 1;
+                    break;
+                }
+            }
+            
+            if (needs_escaping) {
+                // Use single quotes to preserve all metacharacters literally
+                strcat(bypass_command, "'");
+                strcat(bypass_command, arg);
+                strcat(bypass_command, "'");
             } else {
-                strcat(full_command, args[i]);
+                strcat(bypass_command, arg);
             }
         }
         
-        // Debug: print environment and command
-        printf("[DEBUG] Android system() executing: %s\n", full_command);
-        printf("[DEBUG] LD_LIBRARY_PATH: %s\n", getenv("LD_LIBRARY_PATH") ? getenv("LD_LIBRARY_PATH") : "NULL");
-        printf("[DEBUG] FORTIFY_SOURCE: %s\n", getenv("FORTIFY_SOURCE") ? getenv("FORTIFY_SOURCE") : "NULL");
+        // First attempt: Comprehensive bypass
+        int result = system(bypass_command);
         
-        
-        int result = system(full_command);
-        printf("[DEBUG] system() result: %d, WEXITSTATUS: %d\n", result, WEXITSTATUS(result));
+        // If still failing with FORTIFY (exit code 134 = SIGABRT), try fallback approaches
+        if (WEXITSTATUS(result) == 134 || result == 34304) {
+            
+            // Method 2: Direct execution with timeout
+            char fallback_command[4096] = {0};
+            snprintf(fallback_command, sizeof(fallback_command), 
+                    "timeout 30s %s", command);
+            
+            for (int i = 1; args[i] != NULL; i++) {
+                strcat(fallback_command, " ");
+                
+                // Apply same escaping logic for fallback
+                char *arg = args[i];
+                int needs_escaping = 0;
+                for (char *p = arg; *p; p++) {
+                    if (*p == '(' || *p == ')' || *p == ';' || *p == '+' || *p == '\\' || *p == ' ') {
+                        needs_escaping = 1;
+                        break;
+                    }
+                }
+                
+                if (needs_escaping) {
+                    strcat(fallback_command, "'");
+                    strcat(fallback_command, arg);
+                    strcat(fallback_command, "'");
+                } else {
+                    strcat(fallback_command, arg);
+                }
+            }
+            
+            result = system(fallback_command);
+            
+            // Method 3: If still failing, try with sh -c wrapper
+            if (WEXITSTATUS(result) == 134 || result == 34304) {
+                
+                char wrapper_command[4096] = {0};
+                snprintf(wrapper_command, sizeof(wrapper_command), 
+                        "sh -c 'FORTIFY_SOURCE=0 exec %s", command);
+                
+                for (int i = 1; args[i] != NULL; i++) {
+                    strcat(wrapper_command, " ");
+                    
+                    // Apply same escaping logic for sh -c wrapper
+                    char *arg = args[i];
+                    int needs_escaping = 0;
+                    for (char *p = arg; *p; p++) {
+                        if (*p == '(' || *p == ')' || *p == ';' || *p == '+' || *p == '\\' || *p == ' ' || *p == '\'') {
+                            needs_escaping = 1;
+                            break;
+                        }
+                    }
+                    
+                    if (needs_escaping) {
+                        // Inside sh -c, we need to escape single quotes differently
+                        strcat(wrapper_command, "\"");
+                        strcat(wrapper_command, arg);
+                        strcat(wrapper_command, "\"");
+                    } else {
+                        strcat(wrapper_command, arg);
+                    }
+                }
+                strcat(wrapper_command, "'");
+                
+                result = system(wrapper_command);
+            }
+        }
         return WEXITSTATUS(result);
         
 #else

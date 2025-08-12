@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <time.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -15,6 +16,63 @@
 #else
 #include <unistd.h>
 #include <pwd.h>
+#endif
+
+#ifdef __ANDROID__
+#define _GNU_SOURCE
+#endif
+
+#ifdef __ANDROID__
+// Function to detect Android architecture using dpkg
+static const char* detect_android_architecture() {
+    FILE *fp;
+    char output[32];
+    static char arch[16] = {0};
+    
+    // Try dpkg --print-architecture first (Termux standard)
+    fp = popen("dpkg --print-architecture 2>/dev/null", "r");
+    if (fp != NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL) {
+            // Remove newline
+            output[strcspn(output, "\n")] = 0;
+            
+            // Map dpkg architecture names to our naming convention
+            if (strcmp(output, "aarch64") == 0 || strcmp(output, "arm64") == 0) {
+                strcpy(arch, "arm64");
+                pclose(fp);
+                return arch;
+            } else if (strcmp(output, "armhf") == 0 || strcmp(output, "armeabi-v7a") == 0) {
+                strcpy(arch, "arm32");
+                pclose(fp);
+                return arch;
+            }
+        }
+        pclose(fp);
+    }
+    
+    // Fallback: try uname -m
+    fp = popen("uname -m 2>/dev/null", "r");
+    if (fp != NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL) {
+            output[strcspn(output, "\n")] = 0;
+            
+            if (strstr(output, "aarch64") || strstr(output, "arm64")) {
+                strcpy(arch, "arm64");
+                pclose(fp);
+                return arch;
+            } else if (strstr(output, "arm")) {
+                strcpy(arch, "arm32");
+                pclose(fp);
+                return arch;
+            }
+        }
+        pclose(fp);
+    }
+    
+    // Default fallback to arm64 (most common in modern Termux)
+    strcpy(arch, "arm64");
+    return arch;
+}
 #endif
 
 #define COMPILERS_TOML_URL "https://gist.githubusercontent.com/weltschmerzie/03dce551fec8d20a25b99545e652ae5f/raw/compilers.toml"
@@ -330,8 +388,9 @@ bool is_compiler_installed(const char *version) {
     sprintf(path_exe, "%s/%s/pawnc-%s-macos/bin/pawncc", compiler_base_dir, version, version_without_v);
     sprintf(path_dll, "%s/%s/pawnc-%s-macos/lib/libpawnc.dylib", compiler_base_dir, version, version_without_v);
     #elif defined(__ANDROID__)
-    sprintf(path_exe, "%s/%s/bin/pawncc", compiler_base_dir, version);
-    sprintf(path_dll, "%s/%s/lib/libpawnc.so", compiler_base_dir, version);
+    const char* android_arch = detect_android_architecture();
+    sprintf(path_exe, "%s/%s-%s/bin/pawncc", compiler_base_dir, version, android_arch);
+    sprintf(path_dll, "%s/%s-%s/lib/libpawnc.so", compiler_base_dir, version, android_arch);
     #else
     sprintf(path_exe, "%s/%s/pawnc-%s-linux/bin/pawncc", compiler_base_dir, version, version_without_v);
     sprintf(path_dll, "%s/%s/pawnc-%s-linux/lib/libpawnc.so", compiler_base_dir, version, version_without_v);
@@ -386,7 +445,8 @@ char *get_compiler_path(const char *version) {
     #ifdef __APPLE__
     sprintf(path, "%s/%s/pawnc-%s-macos/bin/pawncc", compiler_base_dir, version, version_without_v);
     #elif defined(__ANDROID__)
-    sprintf(path, "%s/%s/bin/pawncc", compiler_base_dir, version);
+    const char* android_arch = detect_android_architecture();
+    sprintf(path, "%s/%s-%s/bin/pawncc", compiler_base_dir, version, android_arch);
     #else
     sprintf(path, "%s/%s/pawnc-%s-linux/bin/pawncc", compiler_base_dir, version, version_without_v);
     #endif
@@ -401,6 +461,9 @@ bool install_compiler(const char *version) {
     char zip_path[512];
     char extract_dir[512];
     char version_without_v[32];
+#ifdef __ANDROID__
+    const char* android_arch = NULL;
+#endif
     
     log_message("Installing compiler version: %s", version);
     
@@ -455,9 +518,10 @@ bool install_compiler(const char *version) {
     sprintf(zip_path, "%s/%s.zip", compiler_base_dir, version);
     sprintf(extract_dir, "%s/%s", compiler_base_dir, version);
     #elif defined(__ANDROID__)
-    sprintf(url, "%s/releases/download/%s/pawnc-%s-android.zip", repo_url, version_without_v, version_without_v);
-    sprintf(zip_path, "%s/%s.zip", compiler_base_dir, version);
-    sprintf(extract_dir, "%s/%s", compiler_base_dir, version);
+    android_arch = detect_android_architecture();
+    sprintf(url, "%s/releases/download/%s/pawnc-%s-android-%s.zip", repo_url, version_without_v, version_without_v, android_arch);
+    sprintf(zip_path, "%s/%s-%s.zip", compiler_base_dir, version, android_arch);
+    sprintf(extract_dir, "%s/%s-%s", compiler_base_dir, version, android_arch);
     #else
     sprintf(url, "%s/releases/download/%s/pawnc-%s-linux.tar.gz", repo_url, version, version_without_v);
     sprintf(zip_path, "%s/%s.tar.gz", compiler_base_dir, version);

@@ -53,6 +53,7 @@ add_executable(opencli
     src/commands/run_command.c
     src/commands/build_command.c
     src/commands/install_command.c
+    src/commands/setup_command.c
     src/utils/process_utils.c
     src/utils/download_utils.c
     src/utils/compiler_utils.c

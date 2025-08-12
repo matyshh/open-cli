@@ -12,6 +12,8 @@ void print_usage(void) {
     print_colored(COLOR_WHITE, "[options]\n\n");
     
     print_colored(COLOR_BRIGHT_BLUE, "Commands:\n");
+    print_colored(COLOR_GREEN, "  setup       ");
+    printf("Initialize open.mp project with default configuration\n");
     print_colored(COLOR_GREEN, "  run         ");
     printf("Start an open.mp server\n");
     print_colored(COLOR_GREEN, "  build       ");
@@ -34,7 +36,9 @@ int main(int argc, char *argv[]) {
 
     const char *command = argv[1];
 
-    if (strcmp(command, "run") == 0) {
+    if (strcmp(command, "setup") == 0) {
+        return command_setup(argc - 2, &argv[2]);
+    } else if (strcmp(command, "run") == 0) {
         return command_run(argc - 2, &argv[2]);
     } else if (strcmp(command, "build") == 0) {
         return command_build(argc - 2, &argv[2]);

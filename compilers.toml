@@ -25,11 +25,20 @@ binary = "pawncc.exe"
 "(pawnc-(.+)/)?bin/pawnc.dll" = "pawnc.dll"
 "(pawnc-(.+)/)?bin/pawncc.exe" = "pawncc.exe"
 
-[android]
-match = "pawnc-(.+)-(android)\\.zip"
+[android-arm32]
+match = "pawnc-(.+)-(android)-(arm32)\\.zip"
 method = "zip"
 binary = "pawncc"
 
-[android.paths]
+[android-arm32.paths]
+"(pawnc-(.+)/)?bin/pawncc" = "pawncc"
+"(pawnc-(.+)/)?lib/libpawnc.so" = "libpawnc.so"
+
+[android-arm64]
+match = "pawnc-(.+)-(android)-(arm64)\\.zip"
+method = "zip"
+binary = "pawncc"
+
+[android-arm64.paths]
 "(pawnc-(.+)/)?bin/pawncc" = "pawncc"
 "(pawnc-(.+)/)?lib/libpawnc.so" = "libpawnc.so"

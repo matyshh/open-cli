@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -535,11 +536,31 @@ int command_build(int argc, char *argv[]) {
         int args_count = 0;
         char **compiler_args = read_toml_compiler_args(DEFAULT_TOML_FILE, &args_count);
         if (compiler_args && args_count > 0) {
+#ifdef __ANDROID__
+            
+            int total_len = 1; 
+            for (int i = 0; i < args_count; i++) {
+                total_len += strlen(compiler_args[i]) + 1; 
+            }
+            
+            char *combined_flags = malloc(total_len); 
+            if (combined_flags) {
+                strcpy(combined_flags, "");  // Remove quotes - start empty
+                for (int i = 0; i < args_count; i++) {
+                    if (i > 0) strcat(combined_flags, " ");
+                    strcat(combined_flags, compiler_args[i]);
+                }
+                // NO quotes added - exactly like manual execution
+                args[arg_count++] = combined_flags;
+            }
+#else
+            
             for (int i = 0; i < args_count && arg_count < 32; i++) {
                 args[arg_count++] = compiler_args[i];
             }
+#endif
         } else {
-            // Default compiler flags if no TOML args available
+            
             args[arg_count++] = "-d3";
             args[arg_count++] = "-;+";
             args[arg_count++] = "-(+";
@@ -548,7 +569,7 @@ int command_build(int argc, char *argv[]) {
             args[arg_count++] = "-O1"; 
         }
     } else {
-        // Default compiler flags if no TOML file
+        
         args[arg_count++] = "-d3";
         args[arg_count++] = "-;+";
         args[arg_count++] = "-(+";
@@ -557,19 +578,17 @@ int command_build(int argc, char *argv[]) {
         args[arg_count++] = "-O1"; 
     }
     
-    // Add input and output files
-    args[arg_count++] = input_file;
-    args[arg_count++] = "-o";
-    args[arg_count++] = output_path_without_ext;  
     
-   
-    char *input_dir = get_directory_path(input_file);
-    char *input_dir_arg = malloc(strlen(input_dir) + 3);
-    if (input_dir_arg) {
-        sprintf(input_dir_arg, "-i%s", input_dir);
-        args[arg_count++] = input_dir_arg;
-        printf("Adding relative include path: %s\n", input_dir);
+    args[arg_count++] = input_file;
+    
+    
+    char *output_arg = malloc(strlen(output_path_without_ext) + 3);
+    if (output_arg) {
+        sprintf(output_arg, "-o%s", output_path_without_ext);
+        args[arg_count++] = output_arg;
     }
+    
+
     
     
     if (have_includes && includes[0] != '\0') {
@@ -610,7 +629,6 @@ int command_build(int argc, char *argv[]) {
     const char *include_dirs[32]; 
     int include_dir_count = 0;
     
-    include_dirs[include_dir_count++] = input_dir;
     
     if (have_includes && includes[0] != '\0') {
         include_dirs[include_dir_count++] = includes;
@@ -648,13 +666,7 @@ int command_build(int argc, char *argv[]) {
 
     printf("Compiling %s to %s...\n", input_file, output_file);
     
-#ifdef __ANDROID__
-    
-    printf("Note: If compilation fails with FORTIFY error, try: export FORTIFY_SOURCE=0\n");
-#endif
-    
     int result = run_process(compiler_path, args, true);
-    
     
     for (int i = 11; i < arg_count; i++) { 
         free(args[i]);
@@ -666,11 +678,47 @@ int command_build(int argc, char *argv[]) {
     remove(dll_dest_path);
 #endif
     
-    if (result == 0) {
+    // Comprehensive validation: Check both exit code AND output file existence
+    bool exit_code_success = (result == 0);
+    bool output_file_exists = false;
+    
+    // Check if output file was actually created
+    struct stat output_stat;
+    if (stat(output_file, &output_stat) == 0) {
+        output_file_exists = true;
+        
+        // Additional validation: Check if file is not empty (valid .amx should have content)
+        if (output_stat.st_size == 0) {
+            output_file_exists = false;
+        }
+    }
+    
+    // Determine actual compilation success based on multiple factors
+    bool compilation_successful = exit_code_success && output_file_exists;
+    
+    if (compilation_successful) {
         printf("Compilation successful!\n");
+        printf("Output file: %s\n", output_file);
         return EXIT_SUCCESS;
     } else {
-        fprintf(stderr, "Compilation failed with error code: %d\n", result);
+        fprintf(stderr, "Compilation failed!\n");
+        
+        if (!exit_code_success) {
+            fprintf(stderr, "  - Process exit code: %d\n", result);
+        }
+        
+        if (!output_file_exists) {
+            fprintf(stderr, "  - Output file not created or empty: %s\n", output_file);
+        }
+        
+        // Additional debugging for Android/Termux FORTIFY issues
+        #ifdef __ANDROID__
+        fprintf(stderr, "\nAndroid/Termux troubleshooting:\n");
+        fprintf(stderr, "  - If you see 'FORTIFY: fputs: null FILE*', this indicates a runtime issue\n");
+        fprintf(stderr, "  - Try: export FORTIFY_SOURCE=0 before running OpenCLI\n");
+        fprintf(stderr, "  - Ensure pawncc binary has execute permissions: chmod +x\n");
+        #endif
+        
         return EXIT_FAILURE;
     }
 }
