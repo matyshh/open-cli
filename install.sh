@@ -53,11 +53,11 @@ detect_architecture() {
         case "$dpkg_arch" in
             aarch64|arm64)
                 ARCH="arm64"
-                BINARY_NAME="opencli-arm64"
+                ZIP_NAME="opencli-arm64.zip"
                 ;;
             armhf|armv7l|arm)
                 ARCH="arm32"
-                BINARY_NAME="opencli-arm32"
+                ZIP_NAME="opencli-arm32.zip"
                 ;;
             *)
                 print_warning "Unknown dpkg architecture: $dpkg_arch"
@@ -71,11 +71,11 @@ detect_architecture() {
         case "$uname_arch" in
             aarch64|arm64)
                 ARCH="arm64"
-                BINARY_NAME="opencli-arm64"
+                ZIP_NAME="opencli-arm64.zip"
                 ;;
             armv7l|armhf|arm)
                 ARCH="arm32"
-                BINARY_NAME="opencli-arm32"
+                ZIP_NAME="opencli-arm32.zip"
                 ;;
             *)
                 print_error "Unsupported architecture: $uname_arch"
@@ -86,7 +86,7 @@ detect_architecture() {
     fi
     
     print_success "Detected architecture: $ARCH"
-    print_info "Will download binary: $BINARY_NAME"
+    print_info "Will download package: $ZIP_NAME"
 }
 
 # Check for required tools
@@ -100,6 +100,11 @@ check_dependencies() {
         missing_tools+=("wget or curl")
     fi
     
+    # Check for unzip (required for .zip extraction)
+    if ! command -v unzip > /dev/null 2>&1; then
+        missing_tools+=("unzip")
+    fi
+    
     if [[ ${#missing_tools[@]} -gt 0 ]]; then
         print_error "Missing required tools: ${missing_tools[*]}"
         print_info "Please install missing tools:"
@@ -110,6 +115,9 @@ check_dependencies() {
                     print_info "  # OR"
                     print_info "  pkg install curl"
                     ;;
+                "unzip")
+                    print_info "  pkg install unzip"
+                    ;;
             esac
         done
         exit 1
@@ -118,23 +126,28 @@ check_dependencies() {
     print_success "All dependencies available"
 }
 
-# Download binary
+# Download and extract binary
 download_binary() {
-    local download_url="${BASE_URL}/${BINARY_NAME}"
-    local temp_file="/tmp/opencli_download"
+    local download_url="${BASE_URL}/${ZIP_NAME}"
+    local temp_zip="/tmp/opencli.zip"
+    local temp_dir="/tmp/opencli_extract"
     
     print_info "Downloading OpenCLI from: $download_url"
     
+    # Clean up any previous extraction
+    rm -rf "$temp_dir"
+    mkdir -p "$temp_dir"
+    
     # Try wget first, then curl
     if command -v wget > /dev/null 2>&1; then
-        if wget -q --show-progress -O "$temp_file" "$download_url"; then
+        if wget -q --show-progress -O "$temp_zip" "$download_url"; then
             print_success "Download completed with wget"
         else
             print_error "Download failed with wget"
             return 1
         fi
     elif command -v curl > /dev/null 2>&1; then
-        if curl -L -o "$temp_file" "$download_url"; then
+        if curl -L -o "$temp_zip" "$download_url"; then
             print_success "Download completed with curl"
         else
             print_error "Download failed with curl"
@@ -146,18 +159,38 @@ download_binary() {
     fi
     
     # Verify download
-    if [[ ! -f "$temp_file" ]] || [[ ! -s "$temp_file" ]]; then
+    if [[ ! -f "$temp_zip" ]] || [[ ! -s "$temp_zip" ]]; then
         print_error "Downloaded file is missing or empty"
         return 1
     fi
     
-    # Check if it's a valid binary
-    if ! file "$temp_file" | grep -q "executable"; then
-        print_warning "Downloaded file may not be a valid executable"
-        print_info "Continuing anyway..."
+    # Extract the zip file
+    print_info "Extracting ZIP package..."
+    if unzip -q "$temp_zip" -d "$temp_dir"; then
+        print_success "Extraction completed"
+    else
+        print_error "Failed to extract ZIP package"
+        return 1
     fi
     
-    DOWNLOADED_FILE="$temp_file"
+    # Find the opencli binary in extracted files
+    local binary_path=$(find "$temp_dir" -name "opencli" -type f -executable | head -1)
+    if [[ -z "$binary_path" ]]; then
+        # Try without executable check (permissions might not be set yet)
+        binary_path=$(find "$temp_dir" -name "opencli" -type f | head -1)
+    fi
+    
+    if [[ -z "$binary_path" ]]; then
+        print_error "OpenCLI binary not found in extracted files"
+        print_info "Available files:"
+        find "$temp_dir" -type f
+        return 1
+    fi
+    
+    print_success "Found OpenCLI binary: $binary_path"
+    EXTRACTED_BINARY="$binary_path"
+    TEMP_DIR="$temp_dir"
+    TEMP_ZIP="$temp_zip"
     return 0
 }
 
