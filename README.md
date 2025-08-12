@@ -34,6 +34,68 @@ cmake ..
 cmake --build .
 ```
 
+## Installation for Android/Termux
+
+OpenCLI provides a convenient installation script for Android/Termux users that automatically detects your device architecture and installs the appropriate binary.
+
+### Prerequisites
+
+Before running the installation script, make sure you have the required tools installed in Termux:
+
+```bash
+# Update package list
+pkg update
+
+# Install required dependencies
+pkg install curl unzip
+```
+
+### Installation Steps
+
+1. **Download the installation script:**
+```bash
+curl -L -o install.sh https://raw.githubusercontent.com/matyshh/open-cli/master/install.sh
+```
+
+2. **Make the script executable:**
+```bash
+chmod +x install.sh
+```
+
+3. **Run the installation script:**
+```bash
+./install.sh
+```
+
+The script will:
+- Download the appropriate opencli binary from the latest release
+- Install it to `$PREFIX/bin/opencli`
+- Set proper execution permissions
+- Verify the installation
+
+### Verification
+
+After installation, verify that opencli is working correctly:
+
+```bash
+# Check if opencli is available
+opencli --help
+
+# Initialize a new project
+opencli setup
+```
+
+### Troubleshooting
+
+If you encounter any issues during installation:
+
+1. **Permission denied errors:** Make sure you have proper write permissions in Termux
+2. **Download failures:** Check your internet connection and try again
+3. **Architecture detection issues:** The script supports ARM32 and ARM64 architectures
+4. **Missing dependencies:** Ensure `curl` and `unzip` are installed via `pkg install curl unzip`
+
+For additional help, visit the [GitHub repository](https://github.com/matyshh/open-cli) or check the issues section.
+
 ## Usage
 
 ### Running a server
