@@ -1,5 +1,5 @@
 @echo off
-REM Build OpenCLI for Android using MSVC and Visual Studio Android NDK
+REM Build opencli for Android using MSVC and Visual Studio Android NDK
 
 REM Check cmake
 where cmake >nul 2>nul

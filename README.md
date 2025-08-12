@@ -36,7 +36,7 @@ cmake --build .
 
 ## Installation for Android/Termux
 
-OpenCLI provides a convenient installation script for Android/Termux users that automatically detects your device architecture and installs the appropriate binary.
+opencli provides a convenient installation script for Android/Termux users that automatically detects your device architecture and installs the appropriate binary.
 
 ### Prerequisites
 
