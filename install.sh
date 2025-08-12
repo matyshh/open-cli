@@ -129,13 +129,16 @@ check_dependencies() {
 # Download and extract binary
 download_binary() {
     local download_url="${BASE_URL}/${ZIP_NAME}"
-    local temp_zip="/tmp/opencli.zip"
-    local temp_dir="/tmp/opencli_extract"
+    # Use writable temp directory in Termux
+    local temp_base="${HOME}/.opencli_tmp"
+    local temp_zip="${temp_base}/opencli.zip"
+    local temp_dir="${temp_base}/extract"
     
     print_info "Downloading OpenCLI from: $download_url"
     
-    # Clean up any previous extraction
-    rm -rf "$temp_dir"
+    # Clean up any previous extraction and create temp directory
+    rm -rf "$temp_base"
+    mkdir -p "$temp_base"
     mkdir -p "$temp_dir"
     
     # Try wget first, then curl
@@ -251,8 +254,17 @@ install_binary() {
 
 # Cleanup
 cleanup() {
-    if [[ -n "$DOWNLOADED_FILE" ]] && [[ -f "$DOWNLOADED_FILE" ]]; then
-        rm -f "$DOWNLOADED_FILE"
+    # Clean up temporary zip file
+    if [[ -n "$TEMP_ZIP" ]] && [[ -f "$TEMP_ZIP" ]]; then
+        rm -f "$TEMP_ZIP"
+    fi
+    
+    # Clean up temporary extraction directory
+    if [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
+        rm -rf "$TEMP_DIR"
+    fi
+    
+    if [[ -n "$TEMP_ZIP" ]] || [[ -n "$TEMP_DIR" ]]; then
         print_info "Cleaned up temporary files"
     fi
 }
