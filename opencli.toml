@@ -1,7 +1,7 @@
 [build]
 entry_file = "gamemodes/main.pwn"
 output_file = "gamemodes/main.amx"
-compiler_version = "v3.10.11"
+compiler_version = "v3.10.10"
 
 [build.includes]
 paths = [
@@ -16,5 +16,5 @@ args = [
     "-(+",
     "-\\+",
     "-Z+",
-    "-O1"
+    "-O2"
 ] 

@@ -60,6 +60,8 @@ add_executable(opencli
     src/utils/toml_utils.c
     src/utils/include_utils.c
     src/utils/console_utils.c
+    src/utils/crypto_utils.c
+    src/utils/security_utils.c
 )
 
 target_link_libraries(opencli tomlc99)

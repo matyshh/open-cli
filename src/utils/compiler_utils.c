@@ -1,5 +1,6 @@
 #include "compiler_utils.h"
 #include "download_utils.h"
+#include "crypto_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -554,6 +555,16 @@ bool install_compiler(const char *version) {
     }
     
     log_message("Download successful. File size: %lld bytes", (long long)st.st_size);
+    
+    // Calculate SHA256 hash for integrity verification
+    uint8_t file_hash[SHA256_DIGEST_LENGTH];
+    if (calculate_file_sha256(zip_path, file_hash)) {
+        char hash_string[65];
+        hash_to_hex_string(file_hash, hash_string);
+        log_message("File SHA256: %s", hash_string);
+    } else {
+        log_message("Warning: Could not calculate SHA256 hash");
+    }
     
     log_message("Extracting compiler to %s...", extract_dir);
 #ifdef _WIN32

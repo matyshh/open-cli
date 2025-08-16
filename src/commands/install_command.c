@@ -19,6 +19,7 @@ static void print_install_usage(void) {
 
 static int handle_install_compiler(int argc, char *argv[]) {
     char compiler_version[32] = DEFAULT_COMPILER_VERSION;
+    bool version_specified = false;
     
     // Parse options
     for (int i = 0; i < argc; i++) {
@@ -31,6 +32,7 @@ static int handle_install_compiler(int argc, char *argv[]) {
             #else
             strcpy(compiler_version, argv[++i]);
             #endif
+            version_specified = true;
             
             // Ensure version starts with 'v'
             if (compiler_version[0] != 'v') {
@@ -47,6 +49,26 @@ static int handle_install_compiler(int argc, char *argv[]) {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             print_install_usage();
             return EXIT_FAILURE;
+        } else if (!version_specified) {
+            // First positional argument is treated as version
+            #ifdef _WIN32
+            strcpy_s(compiler_version, sizeof(compiler_version), argv[i]);
+            #else
+            strcpy(compiler_version, argv[i]);
+            #endif
+            version_specified = true;
+            
+            // Ensure version starts with 'v'
+            if (compiler_version[0] != 'v') {
+                char temp[32];
+                #ifdef _WIN32
+                strcpy_s(temp, sizeof(temp), compiler_version);
+                sprintf_s(compiler_version, sizeof(compiler_version), "v%s", temp);
+                #else
+                strcpy(temp, compiler_version);
+                sprintf(compiler_version, "v%s", temp);
+                #endif
+            }
         }
     }
     

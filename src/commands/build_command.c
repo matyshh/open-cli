@@ -3,6 +3,8 @@
 #include "process_utils.h"
 #include "toml_utils.h"
 #include "include_utils.h"
+#include "security_utils.h"
+#include "crypto_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +19,13 @@
 #define DEFAULT_INPUT_FILE "gamemodes/main.pwn"
 #define DEFAULT_OUTPUT_FILE "gamemodes/main.amx"
 #define DEFAULT_TOML_FILE "opencli.toml"
+
+// Error codes
+#define ERR_SUCCESS 0
+#define ERR_INVALID_INPUT 1
+#define ERR_FILE_NOT_FOUND 2
+#define ERR_COMPILATION_FAILED 3
+#define ERR_SECURITY_VIOLATION 4
 
 static bool copy_file(const char *source, const char *destination) {
     FILE *src_file, *dst_file;
@@ -242,28 +251,58 @@ int command_build(int argc, char *argv[]) {
             print_build_usage();
             return EXIT_SUCCESS;
         } else if (strcmp(argv[i], "--input") == 0 && i + 1 < argc) {
+            char safe_path[MAX_SAFE_PATH_LENGTH];
+            if (!validate_safe_path(argv[++i], safe_path, sizeof(safe_path))) {
+                fprintf(stderr, "Security error: Invalid input path\n");
+                return ERR_SECURITY_VIOLATION;
+            }
+            const char *allowed_input_exts[] = {"pwn", "pawn"};
+            if (!validate_file_extension(safe_path, allowed_input_exts, 2)) {
+                fprintf(stderr, "Error: Input file must be .pwn or .pawn\n");
+                return ERR_INVALID_INPUT;
+            }
             #ifdef _WIN32
-            strcpy_s(input_file, sizeof(input_file), argv[++i]);
+            strcpy_s(input_file, sizeof(input_file), safe_path);
             #else
-            strcpy(input_file, argv[++i]);
+            strcpy(input_file, safe_path);
             #endif
         } else if (strcmp(argv[i], "--output") == 0 && i + 1 < argc) {
+            char safe_path[MAX_SAFE_PATH_LENGTH];
+            if (!validate_safe_path(argv[++i], safe_path, sizeof(safe_path))) {
+                fprintf(stderr, "Security error: Invalid output path\n");
+                return ERR_SECURITY_VIOLATION;
+            }
+            const char *allowed_output_exts[] = {"amx"};
+            if (!validate_file_extension(safe_path, allowed_output_exts, 1)) {
+                fprintf(stderr, "Error: Output file must be .amx\n");
+                return ERR_INVALID_INPUT;
+            }
             #ifdef _WIN32
-            strcpy_s(output_file, sizeof(output_file), argv[++i]);
+            strcpy_s(output_file, sizeof(output_file), safe_path);
             #else
-            strcpy(output_file, argv[++i]);
+            strcpy(output_file, safe_path);
             #endif
         } else if (strcmp(argv[i], "--compiler") == 0 && i + 1 < argc) {
+            char sanitized_version[32];
+            if (!sanitize_argument(argv[++i], sanitized_version, sizeof(sanitized_version))) {
+                fprintf(stderr, "Error: Invalid compiler version\n");
+                return ERR_INVALID_INPUT;
+            }
             #ifdef _WIN32
-            strcpy_s(compiler_version, sizeof(compiler_version), argv[++i]);
+            strcpy_s(compiler_version, sizeof(compiler_version), sanitized_version);
             #else
-            strcpy(compiler_version, argv[++i]);
+            strcpy(compiler_version, sanitized_version);
             #endif
         } else if (strcmp(argv[i], "--includes") == 0 && i + 1 < argc) {
+            char safe_path[MAX_SAFE_PATH_LENGTH];
+            if (!validate_safe_path(argv[++i], safe_path, sizeof(safe_path))) {
+                fprintf(stderr, "Security error: Invalid includes path\n");
+                return ERR_SECURITY_VIOLATION;
+            }
             #ifdef _WIN32
-            strcpy_s(includes, sizeof(includes), argv[++i]);
+            strcpy_s(includes, sizeof(includes), safe_path);
             #else
-            strcpy(includes, argv[++i]);
+            strcpy(includes, safe_path);
             #endif
             have_includes = true;
         } else if (argv[i][0] == '-') {

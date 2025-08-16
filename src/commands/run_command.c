@@ -65,6 +65,13 @@ static void print_run_usage(void) {
 }
 
 int command_run(int argc, char *argv[]) {
+    
+#ifdef __ANDROID__
+    fprintf(stderr, "Error: open.mp server cannot run on Termux/Android environment\n");
+    fprintf(stderr, "Termux does not support server execution due to system limitations\n");
+    return EXIT_FAILURE;
+#endif
+
     // Default values
     char server_path[512] = DEFAULT_SERVER_PATH;
     char config_path[512] = DEFAULT_CONFIG_PATH;

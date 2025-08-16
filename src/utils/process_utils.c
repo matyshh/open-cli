@@ -1,4 +1,5 @@
 #include "process_utils.h"
+#include "security_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,8 +54,15 @@ int run_process(const char *command, char *const args[], bool wait_for_exit) {
     }
 #else
 #ifdef __ANDROID__
-    if (access(command, F_OK) != 0 || access(command, X_OK) != 0) {
-        fprintf(stderr, "Command not found or not executable: %s\n", command);
+    // Security check: validate command path
+    char safe_command[MAX_SAFE_PATH_LENGTH];
+    if (!validate_safe_path(command, safe_command, sizeof(safe_command))) {
+        fprintf(stderr, "Security error: Invalid command path\n");
+        return -1;
+    }
+    
+    if (access(safe_command, F_OK) != 0 || access(safe_command, X_OK) != 0) {
+        fprintf(stderr, "Command not found or not executable: %s\n", safe_command);
         return -1;
     }
         if (strstr(command, "pawncc") != NULL) {
